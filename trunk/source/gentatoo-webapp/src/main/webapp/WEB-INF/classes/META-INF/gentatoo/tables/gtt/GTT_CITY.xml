@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!-- Decriptor file for GTT_CITY from sample DB -->
+<root>
+   
+	<roles>
+		<role>admin</role>
+	</roles>
+
+	<constraint-set name="default"/>  
+   
+	<table name = "GTT_CITY">
+		<title>
+			Welcome to edit GTT_CITY!
+		</title>
+		<description>
+			data set of villages
+			- admin only -
+		</description>
+		<keys>
+			 <key name="id" alias="Country Id (PK)" access="h" type="int" autoincrement="true">
+				<mode name="manual-incr" type="autoincr"/>
+			 </key>
+		</keys>
+		<values>
+			 <parameter name="add">true</parameter>
+			 <parameter name="delete">true</parameter>
+			 <value access="rw" name="name" alias="Name" type="string" />
+			 <value access="r" name="id_country" alias="Country" type="int" select="SELECT id AS gtt_fkey, name AS gtt_alias FROM GTT_COUNTRY " />
+		</values>
+		<orderby>GTT_CITY.name</orderby> 
+	</table>
+   
+</root>

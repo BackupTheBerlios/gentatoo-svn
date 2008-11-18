@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<!-- Decriptor file for GTT_COUNTRY from sample DB -->
+<root>
+
+	<roles>
+		<role>admin</role>
+	</roles>
+	
+  <constraint-set name="default"/>  
+   
+   <table name = "GTT_COUNTRY">
+   		<title>
+   			Welcome to edit GTT_COUNTRY!
+   		</title>
+   		<description>
+   			data set of countries
+   			- admin only -
+   		</description>
+      <keys>
+         <key name="id" alias="Country Id (PK)" access="h" type="int" autoincrement="true">
+         	<mode name="manual-incr" type="autoincr">
+            </mode>	
+         </key>
+      </keys>
+      <values>
+      	 <parameter name="add">true</parameter>
+      	 <parameter name="delete">false</parameter>
+         <value access="rw" name="name" alias="Name" type="string" />
+         <value access="rw" name="total_area_km" alias="Area in km" type="int" />
+         <value access="rw" name="short_name" alias="Short Name" type="string" />
+      </values>
+      <orderby>
+      		GTT_COUNTRY.name
+      </orderby>   
+   </table>
+   
+</root>

@@ -1,0 +1,808 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Copyright 2008 memoComp, www.memocomp.de
+  
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+  
+  http://www.apache.org/licenses/LICENSE-2.0
+  
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+ -->
+
+<map:sitemap xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://apache.org/cocoon/sitemap/1.0 http://cocoon.apache.org/schema/sitemap/cocoon-sitemap-1.0.xsd"
+ xmlns:map="http://apache.org/cocoon/sitemap/1.0">
+
+  <!--+
+      | Definition of the control flow implementation.
+      +-->
+	<map:flow language="javascript"/>
+ 
+  <!--+
+      | Definition of the sitemap components: actions, tranformers, modules, serializers, ...
+      +-->
+	<map:components>
+
+		<map:serializers>
+
+			<!-- serializer for xhtml output-->
+  			<map:serializer name="xhtml"
+     			src="org.apache.cocoon.serialization.XMLSerializer"
+     			mime-type="text/html" 
+     			logger="sitemap.serializer.xhtml"
+     			pool-max="64" >
+     	
+     			<doctype-public>-//W3C//DTD XHTML 1.0 Strict//EN</doctype-public>
+     			<doctype-system>http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd</doctype-system>
+     			<encoding>UTF-8</encoding>
+     			<!-- 	Parameter <indent /> controls the output formatting:
+     					
+     					no= source of xhtml output is in one line
+     					yes= line feeds in generated source code
+     			-->
+     			<indent>yes</indent>
+   			</map:serializer>
+   			
+		</map:serializers>
+		
+		
+    	<map:transformers default="xslt">
+    	
+    		<map:transformer name="xinclude" src="org.apache.cocoon.transformation.XIncludeTransformer"></map:transformer>
+     		
+     		<!-- default transformer -->
+       		<map:transformer name="xslt" src="org.apache.cocoon.transformation.TraxTransformer">
+        		<use-request-parameters>false</use-request-parameters>
+        		<use-browser-capabilities-db>false</use-browser-capabilities-db>       		
+      		</map:transformer>
+      		
+      		<!-- special sql transformer with included blob handling -->
+       		<map:transformer name="sql-blob" src="org.gentatoo.transformation.BinaryCompetentSQLTransformer"
+       				logger="sitemap.transformer.sql">	       		
+      		</map:transformer>
+
+		</map:transformers>
+    	
+    	
+    	<map:actions>
+    	
+    		<map:action name= "dbAdd" src= "org.apache.cocoon.acting.modular.BinaryCompetentDatabaseAddAction">
+    			<throw-exception>true</throw-exception>
+			</map:action>
+    		
+    		<map:action name= "dbUpdate" src= "org.apache.cocoon.acting.modular.BinaryCompetentDatabaseUpdateAction">
+    			<throw-exception>true</throw-exception>
+			</map:action>
+    		
+    		<map:action name= "dbDelete" src= "org.apache.cocoon.acting.modular.DatabaseDeleteAction">
+    			<throw-exception>true</throw-exception>
+			</map:action>
+    		
+    		<map:action name= "dbUploadBlob" src= "org.apache.cocoon.acting.modular.DatabaseBlobUploadAction">
+    			<throw-exception>true</throw-exception>
+			</map:action>
+    		
+    		<map:action name="validateFormInput" src="org.apache.cocoon.acting.FormValidatorAction"/>
+    		
+    		<map:action name="log" src="org.gentatoo.acting.DBLoggingAction"/>
+    		
+    		<map:action name="auth-table" src="org.gentatoo.acting.CheckTableAccessAction"/>
+    		  		  		
+    	</map:actions>
+		
+		
+		<!-- modules to handle the increment mode or primary keys-->
+		<autoincrement-modules>
+		
+			<!-- does an increment by "SELECT LAST_INSERT_ID()" -->
+    		<component-instance name="auto-incr-mysql" class="org.apache.cocoon.components.modules.database.MysqlAutoIncrementModule"/>
+        	
+        	<!-- does an increment by "select max(column)+1 from table" query -->
+        	<component-instance name="manual-incr" class="org.apache.cocoon.components.modules.database.ManualAutoIncrementModule"/>
+        	
+  		</autoincrement-modules>
+		
+  	</map:components>
+
+  <!--+
+      | Definition of the sitemap resources
+      +-->	
+  	<map:resources>
+  		
+  		<!-- START resource pipeline "display"-->
+		<map:resource name="display">
+				
+			<!-- init --> 
+         	<map:generate src="resource/internal/sql/queryTemplate.xml" />
+         
+         	<!-- style tags and replace variables -->
+         	<map:transform type="xslt" src="resource/internal/sql/prepareSQL.xsl">
+         		<map:parameter name="orderClause" value="{orderColumn} {order}"/>
+         		<map:parameter name="orderColumn" value="{orderColumn}"/>
+         		<map:parameter name="tableName" value="{tableName}"/>	
+         		<map:parameter name="pathToDescriptor" value="${org.gentatoo.descriptors.homeDir}/{nameOfDatasource}/{tableName}.xml"/>
+         		<map:parameter name="filterColumn" value="{filterColumn}"/>
+         		<map:parameter name="filterCriteria" value="{filterCriteria}"/>
+         	</map:transform>
+
+         	<!-- execute query -->
+ 	     	<map:transform type="sql-blob">
+				<map:parameter name="use-connection" value="{nameOfDatasource}"/>	
+				<map:parameter name="show-nr-of-rows" value="true"/> 
+				<map:parameter name="descriptor" value="resource://${org.gentatoo.descriptors.homeDir}/{nameOfDatasource}/{tableName}.xml"/>
+				<map:parameter name="blob-cache-folder" value="context://${org.gentatoo.blobCache.homeDir}"/>
+				<map:parameter name="blob-prefix" value="temp"/>
+				<map:parameter name="count" value="{rowsPerPage}"/>
+        		<map:parameter name="blocknr" value="{aktBlockNr}"/>
+	     	</map:transform>
+	     	
+	     	<!-- transform data from sql query into table  	     -->
+	     	<map:transform src="resource/internal/transform2{transform2}.xsl">
+	     		<map:parameter name="nameOfDatasource" value="{nameOfDatasource}"/>
+	     		<map:parameter name="pathToExternalResources" value="{pathToExternalResources}"/>
+	     		<map:parameter name="css" value="${org.gentatoo.view.css}"/>	
+	     		<map:parameter name="rootURL" value="{request:contextPath}"/>
+	     		<map:parameter name="runsqlPattern" value="display"/>
+	     		<map:parameter name="dbActionPattern" value="switch"/>
+	     		<map:parameter name="filterPattern" value="process"/>
+	     		<map:parameter name="cocoonProtocol" value="cocoon:/"/>	
+	     		<map:parameter name="pathToDescriptor" value="${org.gentatoo.descriptors.homeDir}/{nameOfDatasource}/{tableName}.xml"/>	
+	     		<map:parameter name="tableName" value="{tableName}"/>	
+	     		<map:parameter name="rowsPerPage" value="{rowsPerPage}"/>	
+        		<map:parameter name="aktBlockNr" value="{aktBlockNr}"/>
+      			<map:parameter name="statusMsg" value="{statusMsg}" />
+      			<map:parameter name="order" value="{order}" />
+      			<map:parameter name="orderColumn" value="{orderColumn}"/>
+        		<map:parameter name="showFilter" value="${org.gentatoo.view.showFilter}"/>
+        		<map:parameter name="filterCriteria" value="{filterCriteria}"/>
+        		<map:parameter name="filterColumn" value="{filterColumn}"/>
+        		<map:parameter name="pathToLargeObjectCache" value="{pathToExternalResources}/cache"/>
+	     	</map:transform>
+	     	
+			<map:transform type="xinclude" />
+
+	     	<!-- html ouptut -->
+  		 	<map:serialize type="html"/>
+  		  	    		  	  
+		</map:resource>
+		<!-- END OF resource pipeline "display"-->	
+		
+	</map:resources>
+
+ <!--+
+      | Definition of the custom, and default pipelines
+      +-->
+	<map:pipelines>
+
+		<!-- START of tools pipline 
+				for internal use only (no user requests)
+		-->
+		<map:pipeline id="tools" internal-only="true">
+		
+			<!-- START of tools pipline match pattern fkAliasControl: 
+					figures out the alias column (foreign key: gtt_fkey) for a column from a given sql statement and prints out the alias value as text
+					or creates a combobox which content depends on the given sql statement
+					Parameters: name of datasource / table name / column name / mode (Text | Combobox) / current value / name of foreign key column
+			-->
+			<map:match pattern="fkAliasControl/*/*/*/*/*/*">
+      		
+      			<!-- init --> 
+         		<map:generate src="resource/internal/sql/queryTemplate.xml" />
+      		
+      			<!-- style tags and replace variables -->
+	         	<map:transform type="xslt" src="resource/internal/sql/prepareSQLForeignKey.xsl">
+	         		<map:parameter name="pathToDescriptor" value="${org.gentatoo.descriptors.homeDir}/{1}/{2}.xml"/>
+	         		<map:parameter name="columnName" value="{3}"/>
+	         	</map:transform>
+      		
+      			<!-- execute query -->
+	 	     	<map:transform type="sql">
+					<map:parameter name="use-connection" value="{1}"/>	
+					<map:parameter name="show-nr-of-rows" value="true"/> 	
+					<map:parameter name="clob-encoding" value="UTF-8"/>
+		     	</map:transform>
+
+      			<map:transform type="xslt" src="resource/internal/transform2Fk{4}.xsl">
+      				<map:parameter name="tableName" value="{2}"/>
+      				<map:parameter name="columName" value="{3}"/>
+      				<map:parameter name="currentValue" value="{5}"/>
+      				<map:parameter name="fkColumn" value="{6}"/>
+      			</map:transform>
+
+      			<!-- output--> 
+	  			<map:serialize type="xml"/>
+      		
+      		</map:match>
+			<!-- END OF of tools pipline match pattern fkAliasControl -->
+			
+			<!-- START of tools pipline match pattern filterControl: creates a filter form for adding a "where like" clause to the sql statement
+					Parameters: name of datasource / table name / rows per page / order column / order / filter column / filter criteria
+			-->
+			<map:match pattern="filterControl/*/*/*/*/*/*/*">
+      			<!-- init --> 
+         		<map:generate src="resource/internal/pageTemplate.xml" />
+      		
+      			<!-- style tags and replace variables -->
+	         	<map:transform type="xslt" src="resource/internal/transform2FilterForm.xsl">
+	         		<map:parameter name="rootURL" value="{request:contextPath}"/>
+	         		<map:parameter name="pathToDescriptor" value="${org.gentatoo.descriptors.homeDir}/{1}/{2}.xml"/>
+	         		<map:parameter name="filterPattern" value="process"/>
+	         		<map:parameter name="order" value="{5}"/>
+	         		<map:parameter name="orderColumn" value="{4}"/>
+	         		<map:parameter name="nameOfDatasource" value="{1}"/>
+	         		<map:parameter name="tableName" value="{2}"/>
+	         		<map:parameter name="rowsPerPage" value="{3}"/>
+	         		<map:parameter name="filterColumn" value="{6}"/>
+	         		<map:parameter name="filterCriteria" value="{7}"/>
+	         	</map:transform>
+
+      			<!-- output--> 
+	  			<map:serialize type="xml"/>
+      		</map:match>
+			<!-- END OF of tools pipline match pattern filterControl -->
+			
+			<!-- START of tools pipline match pattern navigationControl: creates the navigation links
+					Parameters: name of datasource / table name / rows per page / current block number /order column / order / filter column / filter criteria / runsql pattern / nr of rows
+			-->
+			<map:match pattern="navigationControl/*/*/*/*/*/*/*/*/*/*">
+      			<!-- init --> 
+         		<map:generate src="resource/internal/pageTemplate.xml" />
+      		
+      			<!-- style tags and replace variables -->
+	         	<map:transform type="xslt" src="resource/internal/transform2Navigation.xsl">
+	         		<map:parameter name="rootURL" value="{request:contextPath}"/>
+	         		<map:parameter name="order" value="{6}"/>
+	         		<map:parameter name="orderColumn" value="{5}"/>
+	         		<map:parameter name="nameOfDatasource" value="{1}"/>
+	         		<map:parameter name="tableName" value="{2}"/>
+	         		<map:parameter name="rowsPerPage" value="{3}"/>
+	         		<map:parameter name="filterColumn" value="{7}"/>
+	         		<map:parameter name="filterCriteria" value="{8}"/>
+	         		<map:parameter name="aktBlockNr" value="{4}"/>
+	         		<map:parameter name="runsqlPattern" value="{9}"/>
+	         		<map:parameter name="nrOfRows" value="{10}"/>
+	         	</map:transform>
+
+      			<!-- output--> 
+	  			<map:serialize type="xml"/>
+      		</map:match>
+			<!-- END OF of tools pipline match pattern navigationControl -->
+			
+			<!-- START of tools pipline match pattern pageCountControl: shows the actual page and the total count of pages
+					Parameters: rows per page / current page / nr of rows
+			-->
+			<map:match pattern="pageCountControl/*/*/*">
+      			<!-- init --> 
+         		<map:generate src="resource/internal/pageTemplate.xml" />
+      		
+      			<!-- style tags and replace variables -->
+	         	<map:transform type="xslt" src="resource/internal/transform2PageCount.xsl">
+	         		<map:parameter name="rowsPerPage" value="{1}"/>
+	         		<map:parameter name="aktBlockNr" value="{2}"/>
+	         		<map:parameter name="nrOfRows" value="{3}"/>
+	         	</map:transform>
+
+      			<!-- output--> 
+	  			<map:serialize type="xml"/>
+      		</map:match>
+			<!-- END OF of tools pipline match pattern pageCountControl -->
+			
+			<!-- START of tools pipline match pattern navigationBarControl: creates the navigation bar which includes for example navigationControl and pageCountControl
+					Parameters: name of datasource / table name / rows per page / current block number /order column / order / filter column / filter criteria / runsql pattern / nr of rows
+			-->
+			<map:match pattern="navigationBarControl/*/*/*/*/*/*/*/*/*/*">
+      			<!-- init --> 
+         		<map:generate src="resource/internal/pageTemplate.xml" />
+      		
+      			<!-- style tags and replace variables -->
+	         	<map:transform type="xslt" src="resource/internal/transform2NavigationBar.xsl">
+	         		<map:parameter name="rootURL" value="{request:contextPath}"/>
+	         		<map:parameter name="cocoonProtocol" value="cocoon:/"/>
+	         		<map:parameter name="order" value="{6}"/>
+	         		<map:parameter name="orderColumn" value="{5}"/>
+	         		<map:parameter name="nameOfDatasource" value="{1}"/>
+	         		<map:parameter name="tableName" value="{2}"/>
+	         		<map:parameter name="rowsPerPage" value="{3}"/>
+	         		<map:parameter name="filterColumn" value="{7}"/>
+	         		<map:parameter name="filterCriteria" value="{8}"/>
+	         		<map:parameter name="aktBlockNr" value="{4}"/>
+	         		<map:parameter name="runsqlPattern" value="{9}"/>
+	         		<map:parameter name="nrOfRows" value="{10}"/>
+	         	</map:transform>
+	         	
+	         	<map:transform type="xinclude" />
+
+      			<!-- output--> 
+	  			<map:serialize type="xml"/>
+      		</map:match>
+			<!-- END OF of tools pipline match pattern navigationBarControl -->
+					
+		</map:pipeline>
+		<!-- END OF tools pipeline -->
+
+      	<!-- START of action pipline -->
+		<map:pipeline id="acting">
+      		
+      		<!-- START confirm pipline pattern, creates a confimation page 
+      			Parameter: dataSource /table name / row count / page number / order column / order / filter column / filter criteria 
+      	 	-->
+      		<map:match pattern="confirm/*/*/*/*/*/*/*/*">
+				
+				<!-- init --> 
+	         	<map:generate type="request"/>
+			
+				<!-- style tags and replace variables -->
+	         	<map:transform type="xslt" src="resource/internal/sql/prepareConfirmSQL.xsl">
+	         		<map:parameter name="orderClause" value="{5} {6}"/>
+	         		<map:parameter name="orderColumn" value="{5}"/>
+	         		<map:parameter name="tableName" value="{2}"/>	
+	         		<map:parameter name="pathToDescriptor" value="${org.gentatoo.descriptors.homeDir}/{1}/{2}.xml"/>
+	         		<map:parameter name="filterColumn" value="{7}"/>
+	         		<map:parameter name="filterCriteria" value="{8}"/>
+	         	</map:transform>
+	         	
+	         	<!-- execute query -->
+	 	     	<map:transform type="sql-blob">
+					<map:parameter name="use-connection" value="{1}"/>	
+					<map:parameter name="show-nr-of-rows" value="true"/> 	
+					<map:parameter name="descriptor" value="resource://${org.gentatoo.descriptors.homeDir}/{1}/{2}.xml"/>
+					<map:parameter name="blob-cache-folder" value="context://${org.gentatoo.blobCache.homeDir}"/>
+					<map:parameter name="blob-prefix" value="temp"/>
+		     	</map:transform>
+				
+				<map:select type="parameter">
+        			<map:parameter name="parameter-selector-test" value="{3}"/>
+		  			<map:when test="1">
+		  				<!-- transform to confirmation screen, inverted (pivot) -->
+						<map:transform type="xslt" src="resource/internal/transform2PivotConfirmationPage.xsl">
+							<map:parameter name="nameOfDatasource" value="{1}"/>
+							<map:parameter name="tableName" value="{2}"/>
+							<map:parameter name="cocoonProtocol" value="cocoon:/"/>
+							<map:parameter name="rootURL" value="{request:contextPath}"/>		
+							<map:parameter name="queryString" value="{request:queryString}"/>						
+							<map:parameter name="actionName" value="{request-param:submit}"/>
+							<map:parameter name="urlPattern" value="{1}/{2}/{3}/{4}/{5}/{6}/{7}/{8}"/>
+							<map:parameter name="pathToExternalResources" value="{request:contextPath}/resource/external"/>		
+							<map:parameter name="css" value="${org.gentatoo.view.css}"/>		
+							<map:parameter name="pathToDescriptor" value="resource://${org.gentatoo.descriptors.homeDir}/{1}/{2}.xml"/>	
+							<map:parameter name="pathToLargeObjectCache" value="{request:contextPath}/resource/external/cache"/>	
+						</map:transform>
+		  			</map:when>
+		  			<map:otherwise>
+		  				<!-- transform to confirmation screen, not inverted -->
+						<map:transform type="xslt" src="resource/internal/transform2ConfirmationPage.xsl">
+							<map:parameter name="nameOfDatasource" value="{1}"/>
+							<map:parameter name="tableName" value="{2}"/>
+							<map:parameter name="cocoonProtocol" value="cocoon:/"/>
+							<map:parameter name="rootURL" value="{request:contextPath}"/>		
+							<map:parameter name="queryString" value="{request:queryString}"/>						
+							<map:parameter name="actionName" value="{request-param:submit}"/>
+							<map:parameter name="urlPattern" value="{1}/{2}/{3}/{4}/{5}/{6}/{7}/{8}"/>
+							<map:parameter name="pathToExternalResources" value="{request:contextPath}/resource/external"/>		
+							<map:parameter name="css" value="${org.gentatoo.view.css}"/>		
+							<map:parameter name="pathToDescriptor" value="resource://${org.gentatoo.descriptors.homeDir}/{1}/{2}.xml"/>	
+							<map:parameter name="pathToLargeObjectCache" value="{request:contextPath}/resource/external/cache"/>	
+						</map:transform>
+		  			</map:otherwise>
+				</map:select>
+					
+				<map:transform type="xinclude" />
+	
+				<!-- output as html--> 
+	  			<map:serialize type="html"/>
+
+			<!-- END OF confirm pipline pattern -->
+			</map:match>
+      
+      		<!-- START OF switch pipline pattern, redirects the request depending on the submit parameter
+      		  	Parameter: dataSource /table name / row count / page number / order column / order / filter column / filter criteria
+      		 -->
+      		<map:match pattern="switch/*/*/*/*/*/*/*/*">
+      		
+      			<map:select type="request-parameter">
+    			
+  					<map:parameter name="parameter-name" value="submit"/>
+  				
+  					<map:when test="Update"> 					
+  							<map:redirect-to uri="{request:contextPath}/process/{1}/{2}/{3}/{4}/{5}/{6}/{7}/{8}?{request:queryString}"/>
+  					</map:when>
+  					
+  					<map:when test="Delete">					
+  							<map:redirect-to uri="{request:contextPath}/confirm/{1}/{2}/{3}/{4}/{5}/{6}/{7}/{8}?{request:queryString}"/>
+  					</map:when>
+  					
+  					<map:when test="Add">
+  							<map:redirect-to uri="{request:contextPath}/process/{1}/{2}/{3}/{4}/{5}/{6}/{7}/{8}?{request:queryString}"/>
+  					</map:when>
+  					
+  					<map:otherwise>
+  							<map:redirect-to uri="{request:contextPath}/display/{1}/{2}/{3}/{4}/{5}/{6}/{7}/{8}"/>
+  					</map:otherwise>
+  					
+  				</map:select>
+      		
+      		<!-- END OF switch pipline pattern -->
+      		</map:match> 	
+      
+			<!-- START process pipline pattern, catches submit actions 
+				Parameter: dataSource /table name / row count / page number / order column / order / filter column / filter criteria
+			-->
+			
+   			<map:match pattern="process/*/*/*/*/*/*/*/*">
+    	
+    		<map:act type="auth-table">
+		  		
+		  		<map:parameter name="descriptor" value="resource://${org.gentatoo.descriptors.homeDir}/{1}/{2}.xml"/>
+    	
+	    			<!-- START select which submit action was triggered 
+	    				and do an update or a delete action	
+	    			-->
+	    			<map:select type="request-parameter">
+	  					<map:parameter name="parameter-name" value="submit"/>
+	  					<map:when test="Update">
+	  				
+	  						<map:act type="validateFormInput">
+	    							
+	    							<map:parameter name="constraint-set" value="default"/>
+	    							<map:parameter name="descriptor" value="resource://${org.gentatoo.descriptors.homeDir}/{../1}/{../2}.xml"/>
+									
+									<map:act type="dbUpdate">
+	  									<map:parameter name="connection" value="{../../1}"/>
+	    								<map:parameter name="descriptor" value="resource://${org.gentatoo.descriptors.homeDir}/{../../1}/{../../2}.xml"/>
+	 
+	     								<!-- refresh/show table / validation ok -->
+		    							<map:act type="log">
+											<map:parameter name="message" value="data updated" />
+	     								</map:act> 
+	     								
+		    							<map:redirect-to uri="{request:contextPath}/display/{../../../1}/{../../../2}/{../../../3}/{../../../4}/{../../../5}/{../../../6}/{../../../7}/{../../../8}?msg=Data+updated"/> 
+	    							</map:act>
+											
+							</map:act>
+	  					</map:when>
+	  				
+	  					<map:when test="Delete">
+	  						<map:act type="dbDelete">
+	  							<map:parameter name="connection" value="{../1}"/>
+	    						<map:parameter name="descriptor" value="resource://${org.gentatoo.descriptors.homeDir}/{../1}/{../2}.xml"/>
+	 
+		    					<map:act type="log">
+									<map:parameter name="message" value="data deleted" />
+	     						</map:act>    					
+	     						
+		    					<map:redirect-to uri="{request:contextPath}/display/{../../1}/{../../2}/{../../3}/{../../4}/{../../5}/{../../6}/{../../7}/{../../8}?msg=Data+deleted"/>
+	    					</map:act>
+	  					</map:when>
+	  				
+	  					<map:when test="Add">
+	  							<map:act type="validateFormInput">
+	    							<map:parameter name="constraint-set" value="default"/>
+	    							<map:parameter name="descriptor" value="resource://${org.gentatoo.descriptors.homeDir}/{../1}/{../2}.xml"/>
+									
+									<map:act type="dbAdd">
+	  									<map:parameter name="connection" value="{../../1}"/>
+	    								<map:parameter name="descriptor" value="resource://${org.gentatoo.descriptors.homeDir}/{../../1}/{../../2}.xml"/>
+	    								
+		    							<map:act type="log">
+											<map:parameter name="message" value="data added" />
+	     								</map:act>
+		    							
+		    							<map:redirect-to uri="{request:contextPath}/display/{../../../1}/{../../../2}/{../../../3}/{../../../4}/{../../../5}/{../../../6}/{../../../7}/{../../../8}?msg=Data+added"/>
+	    							</map:act>
+								</map:act>
+	  					</map:when>
+	  					
+	  					<map:when test="Upload">
+	  						<map:act type="dbUploadBlob">				
+	     						<map:parameter name="connection" value="{../1}"/>
+	    						<map:parameter name="descriptor" value="resource://${org.gentatoo.descriptors.homeDir}/{../1}/{../2}.xml"/>
+		    					
+		    					<map:act type="log">
+									<map:parameter name="message" value="blob uploaded" />
+	     						</map:act>
+		    					
+		    					<map:redirect-to uri="{request:contextPath}/display/{../../1}/{../../2}/{../../3}/{../../4}/{../../5}/{../../6}/{../../7}/{../../8}?msg=Object+uploaded"/>
+	    					</map:act>
+	  					</map:when>
+	  					
+	  					<map:when test="Search">
+	  						<map:redirect-to uri="{request:contextPath}/display/{../1}/{../2}/{../3}/{../4}/{../5}/{../6}/{request-param:column}/{request-param:criteria}"/>
+	  					</map:when>
+	  	
+	  					<map:otherwise><!-- no default action supported --></map:otherwise>
+	  					
+	  				<!-- END OF select of submit actions -->
+					</map:select>
+	    	
+	    			<!-- refresh/show table / input validation failed -->
+	    			<map:redirect-to uri="{request:contextPath}/display/{../1}/{../2}/{../3}/{../4}/{../5}/{../6}/{../7}/{../8}?msg=Input+could+not+be+validated"/>
+	        	</map:act>
+	        	
+	        	<map:redirect-to uri="{request:contextPath}/exception?msg=No+access+rights+for+this+request"/>
+	        	
+        	<!-- END OF process pipline pattern, catches submit actions-->
+    		</map:match>
+        
+        	<!-- START action error handler -->
+    		<map:handle-errors>
+				
+				<!-- init --> 
+         		<map:generate src="resource/internal/pageTemplate.xml" />
+      		
+      			<!-- build page -->
+      			<map:transform type="xslt" src="resource/internal/transform2ErrorPage.xsl">
+      				<!-- no usage of external-resource pipeline, because it is not possible here-->
+      				<map:parameter name="pathToExternalResources" value="context://WEB-INF/classes"/>
+      				<map:parameter name="rootURL" value="{request:contextPath}"/>
+      				<map:parameter name="css" value="${org.gentatoo.view.css}"/>
+      				<map:parameter name="errorMsg" value="Unable to perform database action. Please contact your administrator."/>
+      			</map:transform>
+      			
+      			<map:transform type="xinclude" />
+      			
+      			<!-- html ouptut / no xhtml otherwise line feeds in included css will be misinterpreted -->
+  		 		<map:serialize type="html"/>
+		 
+	  		<!-- END OF action error handler -->
+			</map:handle-errors>
+        
+        <!-- END OF action pipeline -->
+      	</map:pipeline>
+      
+		<!-- START main pipline -->
+		<map:pipeline id="main">
+      		
+      		<!-- START main pipeline pattern, catches login -->
+      		<map:match pattern="login">
+      		
+      			<!-- init --> 
+         		<map:generate src="resource/internal/pageTemplate.xml" />
+      		
+      			<!-- build form -->
+      			<map:transform type="xslt" src="resource/internal/transform2LoginForm.xsl">
+      				<map:parameter name="pathToExternalResources" value="{request:contextPath}/resource/external"/>
+      				<map:parameter name="rootURL" value="{request:contextPath}"/>
+      				<map:parameter name="css" value="${org.gentatoo.view.css}"/>
+      			</map:transform>		
+      			
+      			<!-- html ouptut / no xhtml otherwise line feeds in included css will be misinterpreted -->
+  		 		<map:serialize type="html"/>
+      		
+      		<!-- END OF main pipeline pattern, catches login -->
+      		</map:match>
+      
+			<!-- START main pipline pattern, catches display 
+				Parameter: dataSource /table name 
+			-->
+		    <map:match pattern="display/*/*">
+		    	
+		    	<map:redirect-to uri="{request:contextPath}/display/{1}/{2}/${org.gentatoo.view.maxRowsPerPage}" />
+		    
+		    </map:match>
+      		<!-- END OF display pipline pattern, catches display
+				Parameter: dataSource /table name
+			-->
+      
+      		<!-- START main pipline pattern, catches display
+				Parameter: dataSource /table name / row count
+			-->
+	  		<map:match pattern="display/*/*/*">
+	  			<map:redirect-to uri="{request:contextPath}/display/{1}/{2}/{3}/1" />
+	  		</map:match>
+      		<!-- END OF main pipline pattern, catches display
+	  				Parameter: dataSource /table name / row count
+	  		-->
+      
+			<!-- START main pipline pattern, catches display
+				Parameter: dataSource /table name / row count / page number
+			-->
+	  		<map:match pattern="display/*/*/*/*">
+	  			<map:redirect-to uri="{request:contextPath}/display/{1}/{2}/{3}/{4}/-" />
+	  		</map:match>	  		
+	  		<!-- END OF main pipline pattern, catches display
+	  				Parameter: dataSource /table name / row count / page number
+	  		-->
+	  		
+	  		<!-- START main pipline pattern, catches display
+				Parameter: dataSource /table name / row count / page number / order column
+			-->
+	  		<map:match pattern="display/*/*/*/*/*">
+	  			<map:redirect-to uri="{request:contextPath}/display/{1}/{2}/{3}/{4}/{5}/asc" />
+	  		</map:match>	  		  		
+	  		<!-- END OF main pipline pattern, catches display
+	  				Parameter: dataSource /table name / row count / page number / order column
+	  		-->
+	  		
+	  		<!-- START main pipline pattern, catches display
+				Parameter: dataSource /table name / row count / page number / order column / order
+			-->
+	  		<map:match pattern="display/*/*/*/*/*/*">
+	  			<map:redirect-to uri="{request:contextPath}/display/{1}/{2}/{3}/{4}/{5}/{6}/-/-"/>
+	  		</map:match>	  		
+	  		<!-- END OF main pipline pattern, catches display
+	  				Parameter: dataSource /table name / row count / page number / order column / order
+	  		-->
+	  		
+	  		<!-- START main pipline pattern, catches display
+				Parameter: dataSource /table name / row count / page number / order column / order / filter column / filter criteria
+			-->
+	  		<map:match pattern="display/*/*/*/*/*/*/*/*">
+		  		<map:act type="auth-table">
+		  			<map:parameter name="descriptor" value="resource://${org.gentatoo.descriptors.homeDir}/{1}/{2}.xml"/>
+		  			
+		  			<map:select type="parameter">
+        				<map:parameter name="parameter-selector-test" value="{../3}"/>
+		  				<map:when test="1">
+		  					<!-- invert table, because there is only one row per page is selected -->
+		  					<map:call resource="display">
+				  				<map:parameter name="pathToExternalResources" value="{request:contextPath}/resource/external"/>
+				  				<map:parameter name="statusMsg" value="{request-param:msg}"/>
+				  				<map:parameter name="nameOfDatasource" value="{../1}"/>
+				  				<map:parameter name="tableName" value="{../2}"/>
+				  				<map:parameter name="rowsPerPage" value="{../3}"/>
+				  				<map:parameter name="aktBlockNr" value="{../4}"/>
+				  				<map:parameter name="orderColumn" value="{../5}"/>
+				  				<map:parameter name="order" value="{../6}"/>
+				  				<map:parameter name="filterColumn" value="{../7}" />
+				  				<map:parameter name="filterCriteria" value="{../8}" />
+				  				<map:parameter name="transform2" value="PivotTable" />
+				  			</map:call>
+		  				</map:when>
+		  				<map:otherwise>
+		  					<!-- show normal (not inverted) table -->
+		  					<map:call resource="display">
+				  				<map:parameter name="pathToExternalResources" value="{request:contextPath}/resource/external"/>
+				  				<map:parameter name="statusMsg" value="{request-param:msg}"/>
+				  				<map:parameter name="nameOfDatasource" value="{../1}"/>
+				  				<map:parameter name="tableName" value="{../2}"/>
+				  				<map:parameter name="rowsPerPage" value="{../3}"/>
+				  				<map:parameter name="aktBlockNr" value="{../4}"/>
+				  				<map:parameter name="orderColumn" value="{../5}"/>
+				  				<map:parameter name="order" value="{../6}"/>
+				  				<map:parameter name="filterColumn" value="{../7}" />
+				  				<map:parameter name="filterCriteria" value="{../8}" />
+				  				<map:parameter name="transform2" value="Table" />
+				  			</map:call>
+		  				</map:otherwise>
+		  			</map:select>
+		  			
+				</map:act>
+			
+				<map:redirect-to uri="{request:contextPath}/exception?msg=No+access+rights+for+this+request"/>
+	  		</map:match>	  		
+	  		<!-- END OF main pipline pattern, catches display
+	  				Parameter: dataSource /table name / row count / page number / order column / order / filter column / filter criteria
+	  		-->	  		
+	  		
+	  		<!-- START main pipline pattern which redirects the application root to the index page -->
+	  		<map:match pattern="">
+    			<map:redirect-to uri="index"/>
+  			</map:match>
+  			<!-- END OF main pipline pattern which redirects the application root to the index page -->
+	  		
+	  		<!-- START main pipline pattern which shows Index page -->
+	  		<map:match pattern="index">
+      		
+      			<!-- generate xml from directory informations -->
+      			<!-- resource protocol doesn't resolve here. Thats why the context protocol is used. -->
+      			<map:generate type="directory" src="context://WEB-INF/classes/${org.gentatoo.descriptors.homeDir}">
+    				<map:parameter name="depth" value="2"/>
+  				</map:generate>
+      			
+      			<!-- transform xml to index page -->
+      			<map:transform type="xslt" src="resource/internal/transform2IndexPage.xsl">
+      				<map:parameter name="descriptorHomeDir" value="${org.gentatoo.descriptors.homeDir}"/>
+      				<map:parameter name="defaultRowsPerPage" value="${org.gentatoo.view.maxRowsPerPage}"/>
+      				<map:parameter name="pathToExternalResources" value="{request:contextPath}/resource/external"/>
+      				<map:parameter name="rootURL" value="{request:contextPath}"/>      				
+      				<map:parameter name="userPrincipal" value="{request:userPrincipal}"/>    				
+      				<map:parameter name="runsqlPattern" value="display"/>
+      				<map:parameter name="css" value="${org.gentatoo.view.css}"/>
+      			</map:transform>
+				
+      			<!--  xhtml ouput -->
+  		 		<map:serialize type="html"/>
+	  			
+	  		</map:match>
+        	<!-- END OF main pipline pattern which shows Index page -->
+        
+        	<!-- START main pipline pattern which shows custom exception page -->
+	  		<map:match pattern="exception">
+      		
+      			<!-- init --> 
+         		<map:generate src="resource/internal/pageTemplate.xml" />
+      		
+      			<!-- build page -->
+      			<map:transform type="xslt" src="resource/internal/transform2ErrorPage.xsl">
+      				<!-- no usage of external-resource pipeline, because it is not possible here-->
+      				<map:parameter name="pathToExternalResources" value="context://WEB-INF/classes"/>
+      				<map:parameter name="rootURL" value="{request:contextPath}"/>
+      				<map:parameter name="css" value="${org.gentatoo.view.css}"/>
+      				<map:parameter name="errorMsg" value="{request-param:msg}"/>
+      			</map:transform>
+      			
+      			<map:transform type="xinclude" />
+      			
+      			<!-- html ouptut / no xhtml otherwise line feeds in included css will be misinterpreted -->
+  		 		<map:serialize type="html"/>
+  		 		
+	  		</map:match>
+        	<!-- END OF main pipline pattern which shows custom exception page-->
+        
+        <!-- END OF main pipline -->   		
+		</map:pipeline>
+
+	<!--+
+        | Default pipelines
+        | They include for example the external and internal resources for access
+        +-->
+    	<map:pipeline id="internal-resource" internal-only="true">
+    
+      <!-- Put matchers for internal (accessible only to Cocoon blocks) resources here
+        More details: http://cocoon.zones.apache.org/daisy/cdocs-site-main/g2/1345.html -->
+    		<map:match pattern="resource/internal/**">
+        		<map:read src="resource/internal/{1}"/>
+      		</map:match>
+      
+    	</map:pipeline>
+
+
+    	<map:pipeline id="external-resource">
+    	
+      <!-- Put matchers for external (accessible to the outside world, e.g. browser) resources here.
+        More details: http://cocoon.zones.apache.org/daisy/cdocs-site-main/g2/1345.html -->
+      		<map:match pattern="resource/external/images/**">
+        		<map:read src="context://WEB-INF/classes/images/{1}"/>
+      		</map:match>
+      		
+      		<map:match pattern="resource/external/style/**">
+        		<map:read src="context://WEB-INF/classes/style/{1}"/>
+      		</map:match>
+      		
+      		<map:match pattern="resource/external/cache/*">
+        		<map:read src="context://${org.gentatoo.blobCache.homeDir}/{request:requestedSessionId}/{1}"/>
+      		</map:match>
+      
+    	</map:pipeline>
+
+
+    	<map:pipeline id="service">
+    	
+      <!-- Put your servlet service matchers here.
+        More details: http://cocoon.zones.apache.org/daisy/cdocs-site-main/g2/1345.html -->
+    	</map:pipeline>
+    
+    
+    	<!-- START default error handler catches all sitemap exceptions -->
+    	<map:handle-errors>
+				
+				<!-- init --> 
+         		<map:generate src="resource/internal/pageTemplate.xml" />
+      		
+      			<!-- build page -->
+      			<map:transform type="xslt" src="resource/internal/transform2ErrorPage.xsl">
+      				<!-- no usage of external-resource pipeline, because it is not possible here-->
+      				<map:parameter name="pathToExternalResources" value="context://WEB-INF/classes"/>
+      				<map:parameter name="rootURL" value="{request:contextPath}"/>
+      				<map:parameter name="css" value="${org.gentatoo.view.css}"/>
+      				<map:parameter name="errorMsg" value="Unable to resolve URL"/>
+      			</map:transform>
+      			
+      			<map:transform type="xinclude" />
+      			
+      			<!-- html ouptut / no xhtml otherwise line feeds in included css will be misinterpreted -->
+  		 		<map:serialize type="html"/>
+		 
+		</map:handle-errors>
+		<!-- END OF default error handler-->
+    
+	</map:pipelines>
+
+</map:sitemap>

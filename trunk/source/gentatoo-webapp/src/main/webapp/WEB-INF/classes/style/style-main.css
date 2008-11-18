@@ -1,0 +1,206 @@
+html, body, div, p, h1, h2, h3, ul, ol, 
+span, a, table, td, form, img, li
+
+	{
+   		margin: 0;
+   		
+   		padding: 0;
+   		
+   		font-family: Verdana, Geneva, Arial, Helvetica, sans-serif;
+   		
+   		background-color:#FFFFCC;
+
+		font-size: 100.1%;
+   		
+	}
+
+h1
+	{
+
+		padding: 1em 0.5em;
+
+		border:0.2em solid #CCCCCC;
+
+		font-size: 0.9em;		
+
+	}
+
+p
+	{
+
+		padding: 1em 1.5em;
+
+		font-size: 0.8em;
+
+	}
+
+table
+	{
+
+		width: 100%;
+		
+		/*background-color:#CCCCCC;*/
+
+	
+	}
+
+th
+	{
+
+		text-align:left;
+	
+		padding: 0.5em;
+
+		background-color:#CCCCCC;
+
+		font-size: 0.8em;
+
+	}
+	
+th a
+	{
+
+		background-color: #CCCCCC;
+
+		color: #000000;
+		
+		text-decoration: none;
+
+	}
+
+td
+	{
+
+
+		padding: 0.5em;
+
+		font-size: 0.8em;
+
+		/*border:0.2em solid #CCCCCC;*/
+
+		background-color:#DDDDDD;
+
+
+	}
+
+
+li
+
+	{
+
+		padding: 0.5em;
+
+		margin: 0.5em;
+	
+		list-style-type: none;
+
+		font-size: 0.8em;
+	
+	}
+		
+img
+	{
+
+		background-color: #CCCCCC;
+	
+	}
+
+/* wrapper for login screen, confirmation dialog and index page */
+#wrapper1
+
+	{
+	
+		width: 32em;
+	
+		margin: 1em auto;
+
+		border:0.1em solid #CCCCCC;
+	
+	}
+
+/* wrapper for table screen and error pages */	
+#wrapper2
+
+	{
+
+		width: 95%;
+	
+		margin: 1em auto;
+
+		border:0.1em solid #CCCCCC;
+	
+	}
+
+#footer table
+
+	{	
+
+	}
+
+
+#footer tr
+
+	{
+		
+
+	}
+
+
+#footer td
+
+	{
+
+		width: 33%;
+
+		background-color:#FFFFCC;
+
+		border:0em;
+		
+		font-size: 0.8em;		
+
+	}
+	
+#directory
+
+	{
+	
+		border:0.1em solid #CCCCCC;
+	
+	}	
+
+.message
+
+	{
+
+		/*font-weight: bold;*/
+
+		color:#FF0000
+
+	}
+
+.datasource
+	{
+		
+		float:left;
+	
+	}
+
+#filter
+	{
+		
+		width:25em;
+
+		margin: 0 0 0 auto;
+
+		border:0.1em solid #CCCCCC;
+
+		background-color:#DDDDDD;	
+
+	}
+
+#filter td
+	{
+
+		background-color:#DDDDDD;	
+
+	}

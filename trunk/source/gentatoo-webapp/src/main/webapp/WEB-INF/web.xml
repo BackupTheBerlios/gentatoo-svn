@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  - This is the Cocoon web-app configurations file
+  -
+  - $Id$
+  -->
+<web-app version="2.4"
+         xmlns="http://java.sun.com/xml/ns/j2ee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd">
+
+  <!-- Servlet Filters ================================================ -->
+
+  <!--
+    - Declare a filter for multipart MIME handling
+    -->
+	<filter>
+		<description>Multipart MIME handling filter for Cocoon</description>
+		<display-name>Cocoon multipart filter</display-name>
+		<filter-name>CocoonMultipartFilter</filter-name>
+		<filter-class>org.apache.cocoon.servlet.multipart.MultipartFilter</filter-class>
+	</filter>
+
+
+  <!--
+    - Declare a filter for debugging incoming request
+    -->
+	<filter>
+		<description>Log debug information about each request</description>
+		<display-name>Cocoon debug filter</display-name>
+		<filter-name>CocoonDebugFilter</filter-name>
+		<filter-class>org.apache.cocoon.servlet.DebugFilter</filter-class>
+	</filter>
+
+
+  <!-- Filter mappings ================================================ -->
+
+  <!--
+    - Use the Cocoon multipart filter together with the Cocoon demo webapp
+    -->
+	<filter-mapping>
+		<filter-name>CocoonMultipartFilter</filter-name>
+		<servlet-name>Cocoon</servlet-name>
+	</filter-mapping>
+  
+	<filter-mapping>
+		<filter-name>CocoonMultipartFilter</filter-name>
+		<servlet-name>DispatcherServlet</servlet-name>
+	</filter-mapping>
+
+  <!--
+    - Use the Cocoon debug filter together with the Cocoon demo webapp
+  <filter-mapping>
+    <filter-name>CocoonDebugFilter</filter-name>
+    <servlet-name>Cocoon</servlet-name>
+  </filter-mapping>
+    -->
+
+  <!-- Servlet Context Listener ======================================= -->
+
+  <!--
+    - Declare Spring context listener which sets up the Spring Application Context
+    - containing all Cocoon components (and user defined beans as well).
+    -->
+	<listener>
+		<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+	</listener>
+  
+  <!--
+    - Declare GenTaToo context listener
+    - manages the cache folder for blobs
+    -->
+	<listener>
+		<listener-class>org.gentatoo.servlet.ServletContextListenerImpl</listener-class>
+	</listener>
+
+  <!--
+    - Declare Spring request listener which sets up the required RequestAttributes
+    - to support Springs and Cocoon custom bean scopes like the request scope or the
+    - session scope.
+    -->
+	<listener>
+		<listener-class>org.springframework.web.context.request.RequestContextListener</listener-class>
+	</listener>
+  
+  <!--
+    - Declare session listener for GenTaToo to support cache folder management.
+    -->
+	<listener>
+		<listener-class>org.gentatoo.servlet.HttpSessionListenerImpl</listener-class>
+	</listener>
+
+   <!--
+    - Session config
+    - session-timeout: time in minutes which the tomcat session will stay alive. 
+      After that, the session will be destroyed, no matter if the client has an open GenTaToo or not.
+    -->
+   <session-config>  
+        <session-timeout>20</session-timeout>
+   </session-config>
+
+  <!-- Servlet Configuration ========================================== -->
+
+  <!--
+    - Servlet that dispatches requests to the Spring managed block servlets
+    -->
+	<servlet>
+		<description>Cocoon blocks dispatcher</description>
+		<display-name>DispatcherServlet</display-name>
+		<servlet-name>DispatcherServlet</servlet-name>
+		<servlet-class>org.apache.cocoon.servletservice.DispatcherServlet</servlet-class>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+
+  <!-- URL space mappings ============================================= -->
+
+  <!--
+    - Cocoon handles all the URL space assigned to the webapp using its sitemap.
+    - It is recommended to leave it unchanged. Under some circumstances though
+    - (like integration with proprietary webapps or servlets) you might have
+    - to change this parameter.
+    -->
+	<servlet-mapping>
+		<servlet-name>DispatcherServlet</servlet-name>
+		<url-pattern>/*</url-pattern>
+	</servlet-mapping>
+  
+	<security-constraint>
+			<display-name>GenTaToo Security</display-name>
+	    
+			<web-resource-collection>
+				<web-resource-name>Protected Area</web-resource-name> 
+				<!-- Define the context-relative URL(s) to be protected -->
+				<url-pattern>/index</url-pattern> 
+				<url-pattern>/display/*</url-pattern>
+				<url-pattern>/process/*</url-pattern>
+				<url-pattern>/switch/*</url-pattern>
+				<url-pattern>/confirm/*</url-pattern> 
+	      		<!-- If you list http methods, only those methods are protected -->
+				<http-method>DELETE</http-method>
+				<http-method>GET</http-method>
+				<http-method>POST</http-method>
+				<http-method>PUT</http-method>
+			</web-resource-collection>
+	    
+		<auth-constraint>
+			<!-- Anyone with one of the listed roles may access this area -->
+			<!--<role-name>user</role-name>-->
+			<!--<role-name>admin</role-name>-->
+		</auth-constraint>
+	  
+	    <!--
+	      <user-data-constraint>
+	        <transport-guarantee>CONFIDENTIAL</transport-guarantee>
+	      </user-data-constraint>
+	    -->
+	</security-constraint>
+<!--
+  <login-config>
+  
+    <auth-method>BASIC</auth-method>
+    
+    <realm-name>BASIC Authentication mcDBWebEditor</realm-name>
+    
+  </login-config>
+   --> 
+  <!-- Default login configuration uses form-based authentication -->
+  
+	<login-config>
+		<auth-method>FORM</auth-method>
+		<realm-name>Example Form-Based Authentication Area</realm-name>
+		<form-login-config>
+			<form-login-page>/login</form-login-page>
+			<form-error-page>/login</form-error-page>
+		</form-login-config>
+	</login-config>
+
+    <!--filter and filter mapping were added because Tomcat has not allowed
+	to access the login pattern before logged in-->
+	<filter>
+		<filter-name>springRequestContextFilter</filter-name>   
+		<filter-class>org.springframework.web.filter.RequestContextFilter</filter-class>
+	</filter>
+
+	<filter-mapping>
+		<filter-name>springRequestContextFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+		<dispatcher>FORWARD</dispatcher>
+		<dispatcher>REQUEST</dispatcher>
+	</filter-mapping>
+  
+  <!-- Security roles referenced by this web application -->
+  <!--	<security-role>
+		<role-name>admin</role-name>
+	</security-role>
+  -->
+  <!--	<security-role>
+		<role-name>user</role-name>
+	</security-role>
+  -->
+
+</web-app>
+        

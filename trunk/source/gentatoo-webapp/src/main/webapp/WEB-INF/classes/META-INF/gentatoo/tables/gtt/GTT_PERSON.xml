@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!-- Decriptor file for GTT_PERSON from sample DB -->
+<root>
+   
+	<rows-per-page>1</rows-per-page>
+   
+	<roles>
+		<role>admin</role>
+		<role>gentatoo</role>   
+	</roles>
+   
+	<parameter name="GTT_PERSON.id_village" type="long"/>
+	<parameter name="GTT_PERSON.last_name" type="string" min-len="3" max-len="50"/>
+	<parameter name="GTT_PERSON.first_name" type="string" min-len="3" max-len="50"/>
+
+	<constraint-set name="default">
+		<validate name="GTT_PERSON.id_village"/>
+		<validate name="GTT_PERSON.last_name"/>
+		<validate name="GTT_PERSON.first_name"/>
+	</constraint-set>
+   
+	<table name = "GTT_PERSON">
+   		<title>Welcome to edit GTT_PERSON!</title>
+   		<description>Description</description>
+		<keys>
+			 <key name="id" alias="Person Id (PK)" access="h" type="int" autoincrement="true">
+				<mode name="manual-incr" type="autoincr"/>
+			 </key>
+		</keys>
+		<values>
+			 <parameter name="add">true</parameter>
+			 <parameter name="delete">true</parameter>
+			 <value access="rw" textarea_height="2" name="last_name" alias="Last Name" type="string" />
+			 <value access="rw" name="first_name" alias="First Name" type="string" />
+			 <value access="rw" name="id_village" alias="City" type="int" select="SELECT id AS gtt_fkey1, name AS gtt_alias1 FROM GTT_CITY " />
+			 <value access="rw" name="id_music" alias="Music" type="int" select="SELECT id AS gtt_fkey2, name AS gtt_alias2 FROM GTT_MUSIC " />
+			 <value access="rw" name="picture" alias="Picture" type="image" suffix="jpg" />
+		</values>
+		<orderby>GTT_PERSON.last_name</orderby> 
+	</table>
+   
+</root>
